@@ -1,16 +1,18 @@
 # pi-impeccable
 
 [pi](https://github.com/earendil-works/pi) extension for
-[Impeccable](https://impeccable.style/): non-blocking live mode, the design
-detector hook, and `/impeccable` command shortcuts.
+[Impeccable](https://impeccable.style/): ships the Impeccable skill itself,
+plus non-blocking live mode, the design detector hook, and `/impeccable`
+command shortcuts.
+
+The skill (`skills/impeccable/`) is vendored from upstream — see
+[VENDOR.md](VENDOR.md) for provenance and how to refresh it. Installing the
+package is all you need; the extension finds the skill on its own.
 
 Impeccable's live mode keeps the agent in a `live-poll` loop that waits up to
 ten minutes per browser event, which blocks the session. This extension runs
 that loop in the background and delivers browser events to the agent as
 messages, so you can keep chatting while live mode is open.
-
-It does not install, vendor, or update the Impeccable skill. Install the skill
-yourself (any harness location works) and the extension finds it.
 
 ## Install
 
@@ -23,7 +25,11 @@ The extension looks for the skill in this order:
 1. `$IMPECCABLE_SKILL_DIR`
 2. `.agents/skills/impeccable` in the project
 3. `.pi/skills/impeccable` in the project
-4. `~/.agents/skills/impeccable`
+4. `skills/impeccable` shipped with this package
+5. `~/.agents/skills/impeccable`
+
+Explicit locations (env, project) win over the bundled copy, so a project can
+pin its own version; the bundled copy is the fallback that always works.
 
 ## Usage
 
@@ -76,13 +82,24 @@ records the protocol this extension was built against: poll-loop event types
 from `reference/live.md`, `live-poll` flags, and skill commands.
 
 ```bash
-node scripts/drift-check.mjs <skill-dir>          # exit 1 on drift
-node scripts/drift-check.mjs <skill-dir> --print  # current snapshot
-node scripts/drift-check.mjs <skill-dir> --offline  # skip the engine binary (sandboxed builds)
+node scripts/drift-check.mjs skills/impeccable --offline  # vendored copy vs baseline
+node scripts/drift-check.mjs <skill-dir>                  # exit 1 on drift
+node scripts/drift-check.mjs <skill-dir> --print          # current snapshot
+node scripts/drift-check.mjs <skill-dir> --offline        # skip the engine binary (sandboxed builds)
 ```
 
-CI runs it weekly against the latest upstream skill. On drift, review
-`extensions/` against the change, then refresh the baseline with `--print`.
+CI runs the vendored copy against the baseline on every push/PR, and weekly
+against upstream `main` (job `upstream-drift`): a diff catches a stale vendored
+copy, the drift check catches protocol changes. On drift, review `extensions/`
+against the change, then refresh:
+
+```bash
+node scripts/update-skill.mjs        # re-vendor skills/impeccable from upstream main
+node scripts/update-skill.mjs <ref>  # or a specific tag/commit
+```
+
+The script rewrites `VENDOR.md` and reports baseline deltas; bump
+`scripts/baseline.json` via `--print` if the change is intended.
 
 ## Development
 

@@ -17,13 +17,23 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      - name: Vendored skill matches baseline (offline)
+        run: node scripts/drift-check.mjs skills/impeccable --offline
+      - name: Tests (incl. real engine)
+        run: npm test
+        env:
+          IMPECCABLE_SKILL_DIR: ${{ github.workspace }}/skills/impeccable
+
+  upstream-drift:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           repository: pbakaus/impeccable
           path: .upstream
-      - name: Drift check against upstream main
-        run: node scripts/drift-check.mjs ${{ github.workspace }}/.upstream/.pi/skills/impeccable
-      - name: Tests (incl. real engine)
-        run: npm test
-        env:
-          IMPECCABLE_SKILL_DIR: ${{ github.workspace }}/.upstream/.pi/skills/impeccable
+      - name: Vendored skill in sync with upstream main
+        run: diff -r --exclude=LICENSE skills/impeccable .upstream/.pi/skills/impeccable
+      - name: Protocol drift against upstream main
+        run: node scripts/drift-check.mjs .upstream/.pi/skills/impeccable

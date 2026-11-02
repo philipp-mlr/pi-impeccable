@@ -1,7 +1,11 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Skill shipped with this package (extensions/ -> package root -> skills/impeccable).
+const bundledSkillDir = join(dirname(dirname(fileURLToPath(import.meta.url))), "skills", "impeccable");
 
 export interface RunResult {
 	code: number | null;
@@ -19,6 +23,7 @@ export function findSkillDir(cwd: string, env: NodeJS.ProcessEnv = process.env):
 		env.IMPECCABLE_SKILL_DIR,
 		join(cwd, ".agents", "skills", "impeccable"),
 		join(cwd, ".pi", "skills", "impeccable"),
+		bundledSkillDir,
 		join(homedir(), ".agents", "skills", "impeccable"),
 	];
 	return candidates.find((dir): dir is string => !!dir && existsSync(join(dir, "scripts", "impeccable")));

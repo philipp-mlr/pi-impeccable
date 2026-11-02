@@ -1,7 +1,7 @@
 {
   "name": "pi-impeccable",
-  "version": "0.1.0",
-  "description": "pi extension for Impeccable: non-blocking live mode and /impeccable command shortcuts",
+  "version": "0.2.0",
+  "description": "pi extension for Impeccable: ships the Impeccable skill, non-blocking live mode, and /impeccable command shortcuts",
   "keywords": [
     "pi-package"
   ],
@@ -10,12 +10,15 @@
   "repository": "github:philipp-mlr/pi-impeccable",
   "files": [
     "extensions",
+    "skills",
     "scripts",
     "README.md",
+    "VENDOR.md",
     "LICENSE"
   ],
   "pi": {
-    "extensions": ["./extensions/impeccable.ts"]
+    "extensions": ["./extensions/impeccable.ts"],
+    "skills": ["./skills"]
   },
   "scripts": {
     "test": "vitest run",
