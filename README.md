@@ -1,8 +1,8 @@
 # pi-impeccable
 
 [pi](https://github.com/earendil-works/pi) extension for
-[Impeccable](https://impeccable.style/): non-blocking live mode and
-`/impeccable` command shortcuts.
+[Impeccable](https://impeccable.style/): non-blocking live mode, the design
+detector hook, and `/impeccable` command shortcuts.
 
 Impeccable's live mode keeps the agent in a `live-poll` loop that waits up to
 ten minutes per browser event, which blocks the session. This extension runs
@@ -35,7 +35,28 @@ The extension looks for the skill in this order:
 ```
 
 `<command>` completes from the skill's `command-metadata.json` (`polish`,
-`critique`, `audit`, ...).
+`critique`, `audit`, ...) plus `hooks` and `doctor`. Upstream's `pin`/`unpin`
+are not offered: `/impeccable <command>` already is the shortcut.
+
+Commands typed while the agent is busy are queued as steering messages.
+
+## Design hook
+
+Upstream installs its design detector hook for Claude Code, Codex, Cursor,
+Copilot, Grok, and Hermes, but not pi. This extension drives the same engine
+from pi events:
+
+- After each successful `edit`/`write`, it runs `impeccable hook` and appends
+  the per-edit findings to the tool result.
+- Before a completed run settles, it runs the Stop deep pass once over the
+  files touched in that run. Findings arrive as an `impeccable-hook` message
+  and the agent continues one more turn to triage them.
+
+The engine decides what is a UI file and honors `hook.enabled`, `hook.quiet`,
+and the ignore lists in `.impeccable/config.json`, so `/impeccable hooks off`
+and the `ignore-*` actions work as documented upstream. `impeccable context`
+still prints `MANUAL_DETECTOR_REQUIRED` because it only looks for upstream's
+manifests; the extension tells the agent the hook is already covered.
 
 While live mode runs:
 

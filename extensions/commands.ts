@@ -12,12 +12,14 @@ export const LIVE_COMMANDS: CommandInfo[] = [
 	{ name: "status", description: "Show live server and poller state" },
 ];
 
-/** Skill commands documented in SKILL.md but missing from command-metadata.json. */
+/**
+ * Skill commands documented in SKILL.md but missing from command-metadata.json.
+ * `pin`/`unpin` are left out: they only write into harness skill folders (`.pi/skills/...`),
+ * so they fail when the skill is loaded from elsewhere, and `/impeccable <command>` covers them.
+ */
 export const ADMIN_COMMANDS: CommandInfo[] = [
 	{ name: "hooks", description: "Manage the design detector hook: on, off, status, ignore-*, reset." },
 	{ name: "doctor", description: "Report and repair drift in this project's Impeccable artifacts." },
-	{ name: "pin", description: "Create a standalone shortcut for an Impeccable command." },
-	{ name: "unpin", description: "Remove a pinned command shortcut." },
 ];
 
 export function loadCommands(skillDir: string): CommandInfo[] {

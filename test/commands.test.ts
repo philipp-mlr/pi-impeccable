@@ -35,12 +35,10 @@ describe("completions", () => {
 			"status",
 			"hooks",
 			"doctor",
-			"pin",
-			"unpin",
 			"polish",
 			"critique",
 		]);
-		expect(completions("p", commands)?.map((c) => c.value)).toEqual(["pin", "polish"]);
+		expect(completions("p", commands)?.map((c) => c.value)).toEqual(["polish"]);
 		expect(completions("st", commands)?.map((c) => c.value)).toEqual(["stop", "status"]);
 		expect(completions("po", commands)?.[0]).toEqual({ value: "polish", label: "polish", description: "Final pass." });
 	});
