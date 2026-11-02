@@ -20,10 +20,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: pbakaus/impeccable
-          path: upstream
+          path: .upstream
       - name: Drift check against upstream main
-        run: node scripts/drift-check.mjs upstream/.pi/skills/impeccable
+        run: node scripts/drift-check.mjs ${{ github.workspace }}/.upstream/.pi/skills/impeccable
       - name: Tests (incl. real engine)
         run: npm test
         env:
-          IMPECCABLE_SKILL_DIR: ${{ github.workspace }}/upstream/.pi/skills/impeccable
+          IMPECCABLE_SKILL_DIR: ${{ github.workspace }}/.upstream/.pi/skills/impeccable
