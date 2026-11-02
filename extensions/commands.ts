@@ -12,11 +12,19 @@ export const LIVE_COMMANDS: CommandInfo[] = [
 	{ name: "status", description: "Show live server and poller state" },
 ];
 
+/** Skill commands documented in SKILL.md but missing from command-metadata.json. */
+export const ADMIN_COMMANDS: CommandInfo[] = [
+	{ name: "hooks", description: "Manage the design detector hook: on, off, status, ignore-*, reset." },
+	{ name: "doctor", description: "Report and repair drift in this project's Impeccable artifacts." },
+	{ name: "pin", description: "Create a standalone shortcut for an Impeccable command." },
+	{ name: "unpin", description: "Remove a pinned command shortcut." },
+];
+
 export function loadCommands(skillDir: string): CommandInfo[] {
 	try {
 		const metadata = JSON.parse(readFileSync(join(skillDir, "scripts", "command-metadata.json"), "utf8"));
 		return Object.entries(metadata as Record<string, { description?: string }>)
-			.filter(([name]) => !LIVE_COMMANDS.some((c) => c.name === name))
+			.filter(([name]) => ![...LIVE_COMMANDS, ...ADMIN_COMMANDS].some((c) => c.name === name))
 			.map(([name, info]) => ({ name, description: info?.description ?? "" }));
 	} catch {
 		return [];
@@ -25,7 +33,7 @@ export function loadCommands(skillDir: string): CommandInfo[] {
 
 export function completions(prefix: string, commands: CommandInfo[]) {
 	if (/\s/.test(prefix)) return null;
-	const items = [...LIVE_COMMANDS, ...commands]
+	const items = [...LIVE_COMMANDS, ...ADMIN_COMMANDS, ...commands]
 		.filter((c) => c.name.startsWith(prefix))
 		.map((c) => ({ value: c.name, label: c.name, description: firstSentence(c.description) }));
 	return items.length ? items : null;

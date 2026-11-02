@@ -1,9 +1,15 @@
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { isBashToolResult, isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import {
+	isBashToolResult,
+	isEditToolResult,
+	isToolCallEventType,
+	isWriteToolResult,
+} from "@earendil-works/pi-coding-agent";
 import { completions, loadCommands, skillPrompt, type CommandInfo } from "./commands.ts";
 import { engineRunner, findSkillDir, parseJson } from "./engine.ts";
 import { BLOCK_REASON, isBlockingPoll, isLiveBoot, isLiveStop } from "./guard.ts";
+import { DesignHook } from "./hook.ts";
 import { LiveSession } from "./live.ts";
 
 const LIVE_NOTE =
@@ -11,9 +17,15 @@ const LIVE_NOTE =
 	"browser events as `impeccable-live` messages. Never run `live-poll` without `--reply`, and never pass " +
 	"`--then-poll` or `--stream`; reply once per event, then end your turn.";
 
+const HOOK_NOTE =
+	"pi-impeccable runs the Impeccable design hook automatically: per-edit findings are appended to edit/write " +
+	"results and a deep pass arrives as an `impeccable-hook` message when you finish. Unless `hook.enabled` is " +
+	"false in `.impeccable/config.json`, treat `MANUAL_DETECTOR_REQUIRED` as already covered.";
+
 export default function (pi: ExtensionAPI) {
 	let session: LiveSession | undefined;
 	let commands: CommandInfo[] = [];
+	let hook: DesignHook | undefined;
 
 	const skillDir = (cwd: string) => findSkillDir(cwd);
 
@@ -90,6 +102,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		const dir = skillDir(ctx.cwd);
 		commands = dir ? loadCommands(dir) : [];
+		hook = dir ? new DesignHook(engineRunner(dir)) : undefined;
 	});
 
 	pi.registerCommand("impeccable", {
@@ -112,6 +125,29 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_result", async (event, ctx) => {
+		if (!hook || event.isError || !(isEditToolResult(event) || isWriteToolResult(event))) return;
+		const path = event.input.path;
+		if (typeof path !== "string") return;
+		const text = await hook.afterEdit({
+			cwd: ctx.cwd,
+			sessionId: ctx.sessionManager.getSessionId(),
+			tool: event.toolName,
+			path,
+		});
+		if (text) return { content: [...event.content, { type: "text", text }] };
+	});
+
+	pi.on("agent_before_settle", async (event, ctx) => {
+		if (!hook || event.outcome !== "completed") return;
+		const text = await hook.beforeSettle({ cwd: ctx.cwd, sessionId: ctx.sessionManager.getSessionId() });
+		if (!text) return;
+		return {
+			entries: [{ type: "custom_message", customType: "impeccable-hook", content: text, display: true }],
+			continue: true,
+		};
+	});
+
+	pi.on("tool_result", async (event, ctx) => {
 		if (!isBashToolResult(event) || event.isError) return;
 		const command = String(event.input.command ?? "");
 		if (isLiveStop(command)) return void (await session?.stop());
@@ -122,6 +158,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", (event) => {
+		if (hook) event.systemPromptOptions.promptGuidelines.push(HOOK_NOTE);
 		if (session?.active) event.systemPromptOptions.promptGuidelines.push(LIVE_NOTE);
 	});
 

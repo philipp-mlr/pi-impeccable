@@ -9,7 +9,10 @@ export interface RunResult {
 	stderr: string;
 }
 
-export type Runner = (args: string[], opts: { cwd: string; signal?: AbortSignal }) => Promise<RunResult>;
+export type Runner = (
+	args: string[],
+	opts: { cwd: string; signal?: AbortSignal; input?: string },
+) => Promise<RunResult>;
 
 export function findSkillDir(cwd: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
 	const candidates = [
@@ -23,7 +26,7 @@ export function findSkillDir(cwd: string, env: NodeJS.ProcessEnv = process.env):
 
 export function engineRunner(skillDir: string): Runner {
 	const bin = join(skillDir, "scripts", "impeccable");
-	return (args, { cwd, signal }) =>
+	return (args, { cwd, signal, input }) =>
 		new Promise((resolve, reject) => {
 			const child = spawn(bin, args, {
 				cwd,
@@ -35,6 +38,7 @@ export function engineRunner(skillDir: string): Runner {
 			child.stdout.on("data", (chunk) => (stdout += chunk));
 			child.stderr.on("data", (chunk) => (stderr += chunk));
 			child.on("error", reject);
+			if (input !== undefined) child.stdin.end(input);
 			child.on("close", (code) => resolve({ code, stdout, stderr }));
 		});
 }
