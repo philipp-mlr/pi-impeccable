@@ -47,6 +47,7 @@ export default function (pi: ExtensionAPI) {
 			pi.sendUserMessage(
 				`${skillPrompt("live", target)}\n\n\`impeccable live\` could not start:\n\n\`\`\`\n${detail}\n\`\`\`\n\n` +
 					"Resolve this (see reference/live.md and live-setup.md), then ask me to run `/impeccable live` again.",
+				{ deliverAs: "steer" },
 			);
 			return;
 		}
@@ -100,7 +101,8 @@ export default function (pi: ExtensionAPI) {
 			if (head === "live") return live(tail, ctx);
 			if (head === "stop") return stop(ctx);
 			if (head === "status") return status(ctx);
-			pi.sendUserMessage(skillPrompt(head, tail), { expandPromptTemplates: true });
+			// deliverAs only applies while the agent is busy; when idle the message starts a turn as usual.
+			pi.sendUserMessage(skillPrompt(head, tail), { expandPromptTemplates: true, deliverAs: "steer" });
 		},
 	});
 
