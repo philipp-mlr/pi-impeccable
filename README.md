@@ -57,6 +57,7 @@ from `reference/live.md`, `live-poll` flags, and skill commands.
 ```bash
 node scripts/drift-check.mjs <skill-dir>          # exit 1 on drift
 node scripts/drift-check.mjs <skill-dir> --print  # current snapshot
+node scripts/drift-check.mjs <skill-dir> --offline  # skip the engine binary (sandboxed builds)
 ```
 
 CI runs it weekly against the latest upstream skill. On drift, review

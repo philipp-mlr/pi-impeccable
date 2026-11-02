@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Compares an Impeccable skill dir against the protocol pi-impeccable was built for.
-// Usage: drift-check.mjs <skill-dir>   (exit 1 on drift, 2 on usage/read errors)
+// Usage: drift-check.mjs <skill-dir> [--print] [--offline]   (exit 1 on drift, 2 on usage/read errors)
+// --offline skips the engine binary (it downloads on first run), so live-poll flags are not checked.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,41 +25,43 @@ export function diff(name, expected, actual) {
 	return added.length || removed.length ? [{ name, added, removed }] : [];
 }
 
-export function snapshot(skillDir) {
+export function snapshot(skillDir, { offline = false } = {}) {
 	const engine = join(skillDir, "scripts", "impeccable");
 	const env = { ...process.env, IMPECCABLE_NO_TELEMETRY: "1" };
 	return {
 		events: pollLoopEvents(readFileSync(join(skillDir, "reference", "live.md"), "utf8")),
-		pollFlags: pollFlags(execFileSync(engine, ["live-poll", "--help"], { env, encoding: "utf8" })),
+		pollFlags: offline ? undefined : pollFlags(execFileSync(engine, ["live-poll", "--help"], { env, encoding: "utf8" })),
 		commands: Object.keys(JSON.parse(readFileSync(join(skillDir, "scripts", "command-metadata.json"), "utf8"))).sort(),
 		engine: readFileSync(join(skillDir, "scripts", "VERSION"), "utf8").trim(),
 	};
 }
 
-export function check(skillDir, baseline = BASELINE) {
-	const current = snapshot(skillDir);
+export function check(skillDir, { baseline = BASELINE, offline = false } = {}) {
+	const current = snapshot(skillDir, { offline });
 	const findings = [
 		...diff("live event types", baseline.events, current.events),
-		...diff("live-poll flags", baseline.pollFlags, current.pollFlags),
+		...(offline ? [] : diff("live-poll flags", baseline.pollFlags, current.pollFlags)),
 		...diff("skill commands", baseline.commands, current.commands),
 	];
 	return { current, findings };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	const [skillDir, flag] = process.argv.slice(2);
+	const args = process.argv.slice(2);
+	const skillDir = args.find((a) => !a.startsWith("--"));
+	const offline = args.includes("--offline");
 	if (!skillDir) {
-		console.error("usage: drift-check.mjs <skill-dir> [--print]");
+		console.error("usage: drift-check.mjs <skill-dir> [--print] [--offline]");
 		process.exit(2);
 	}
 	let result;
 	try {
-		result = check(skillDir);
+		result = check(skillDir, { offline });
 	} catch (error) {
 		console.error(`drift-check: ${error.message}`);
 		process.exit(2);
 	}
-	if (flag === "--print") {
+	if (args.includes("--print")) {
 		console.log(JSON.stringify(result.current, null, 2));
 		process.exit(0);
 	}
