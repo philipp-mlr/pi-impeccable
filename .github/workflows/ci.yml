@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - uses: actions/checkout@v4
+        with:
+          repository: pbakaus/impeccable
+          path: upstream
+      - name: Drift check against upstream main
+        run: node scripts/drift-check.mjs upstream/.pi/skills/impeccable
+      - name: Tests (incl. real engine)
+        run: npm test
+        env:
+          IMPECCABLE_SKILL_DIR: ${{ github.workspace }}/upstream/.pi/skills/impeccable

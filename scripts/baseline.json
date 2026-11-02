@@ -1,0 +1,51 @@
+{
+  "events": [
+    "accept",
+    "discard",
+    "exit",
+    "generate",
+    "manual_edit_apply",
+    "prefetch",
+    "steer",
+    "timeout",
+    "variant_mount_failed"
+  ],
+  "pollFlags": [
+    "--ack-timeout",
+    "--data",
+    "--file",
+    "--help",
+    "--reply",
+    "--stream",
+    "--then-poll",
+    "--timeout",
+    "--types"
+  ],
+  "commands": [
+    "adapt",
+    "animate",
+    "audit",
+    "bolder",
+    "clarify",
+    "colorize",
+    "craft",
+    "critique",
+    "delight",
+    "distill",
+    "document",
+    "extract",
+    "generate",
+    "harden",
+    "init",
+    "layout",
+    "live",
+    "onboard",
+    "optimize",
+    "overdrive",
+    "polish",
+    "quieter",
+    "shape",
+    "typeset"
+  ],
+  "engine": "0.1.18"
+}

@@ -1,0 +1,34 @@
+{
+  "name": "pi-impeccable",
+  "version": "0.1.0",
+  "description": "pi extension for Impeccable: non-blocking live mode and /impeccable command shortcuts",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "repository": "github:philipp-mlr/pi-impeccable",
+  "files": [
+    "extensions",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": ["./extensions/impeccable.ts"]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "drift": "node scripts/drift-check.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
