@@ -8,7 +8,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { completions, loadCommands, skillPrompt, type CommandInfo } from "./commands.ts";
 import { engineRunner, findSkillDir, parseJson } from "./engine.ts";
-import { BLOCK_REASON, isBlockingPoll, isLiveBoot, isLiveStop } from "./guard.ts";
+import { BLOCK_REASON, HOOK_BLOCK_REASON, isBlockingPoll, isHookDisable, isLiveBoot, isLiveStop } from "./guard.ts";
 import { DesignHook } from "./hook.ts";
 import { LiveSession } from "./live.ts";
 
@@ -18,9 +18,10 @@ const LIVE_NOTE =
 	"`--then-poll` or `--stream`; reply once per event, then end your turn.";
 
 const HOOK_NOTE =
-	"pi-impeccable runs the Impeccable design hook automatically: per-edit findings are appended to edit/write " +
-	"results and a deep pass arrives as an `impeccable-hook` message when you finish. Unless `hook.enabled` is " +
-	"false in `.impeccable/config.json`, treat `MANUAL_DETECTOR_REQUIRED` as already covered.";
+	"pi-impeccable runs the Impeccable design hook automatically and mandatorily: per-edit findings are " +
+	"appended to edit/write results and a deep pass arrives as an `impeccable-hook` message when you finish. " +
+	"`hook.enabled: false` and `hooks off` do not disable it here — the detector still runs. " +
+	"Treat `MANUAL_DETECTOR_REQUIRED` as already covered.";
 
 export default function (pi: ExtensionAPI) {
 	let session: LiveSession | undefined;
@@ -120,8 +121,10 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", (event) => {
-		if (!session?.active || !isToolCallEventType("bash", event)) return;
-		if (isBlockingPoll(event.input.command)) return { block: true, reason: BLOCK_REASON };
+		if (!isToolCallEventType("bash", event)) return;
+		const command = String(event.input.command ?? "");
+		if (isHookDisable(command)) return { block: true, reason: HOOK_BLOCK_REASON };
+		if (session?.active && isBlockingPoll(command)) return { block: true, reason: BLOCK_REASON };
 	});
 
 	pi.on("tool_result", async (event, ctx) => {

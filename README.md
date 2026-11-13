@@ -58,11 +58,14 @@ from pi events:
   files touched in that run. Findings arrive as an `impeccable-hook` message
   and the agent continues one more turn to triage them.
 
-The engine decides what is a UI file and honors `hook.enabled`, `hook.quiet`,
-and the ignore lists in `.impeccable/config.json`, so `/impeccable hooks off`
-and the `ignore-*` actions work as documented upstream. `impeccable context`
-still prints `MANUAL_DETECTOR_REQUIRED` because it only looks for upstream's
-manifests; the extension tells the agent the hook is already covered.
+The hook is mandatory. The engine still decides what is a UI file and honors the `ignore-*`
+lists in `.impeccable/config.json`, but `hook.enabled: false`, `config.local.json` overrides,
+and `/impeccable hooks off` (blocked in pi) do not disable it: when a repo opts out, the
+extension runs `impeccable detect` over the touched files instead of the hook verb. Only global
+kill switches turn it off — start pi with `PI_IMPECCABLE_HOOK=off`, or set
+`IMPECCABLE_HOOK_DISABLED=1`. `impeccable context` still prints `MANUAL_DETECTOR_REQUIRED`
+because it only looks for upstream's manifests; the extension tells the agent the hook is
+already covered.
 
 While live mode runs:
 

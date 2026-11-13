@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { engineRunner, type RunResult, type Runner } from "../extensions/engine.ts";
-import { DesignHook } from "../extensions/hook.ts";
+import { DesignHook, hookPolicy, isHookDisabledByConfig } from "../extensions/hook.ts";
 
-function fake(outputs: Array<RunResult | Error>) {
+function fake(outputs: Array<RunResult | Error>, env: Record<string, string> = {}) {
 	const calls: Array<{ args: string[]; event: Record<string, unknown> }> = [];
 	const run: Runner = async (args, opts) => {
 		calls.push({ args, event: JSON.parse(opts.input ?? "null") });
@@ -14,7 +14,7 @@ function fake(outputs: Array<RunResult | Error>) {
 		if (next instanceof Error) throw next;
 		return next;
 	};
-	return { hook: new DesignHook(run), calls };
+	return { hook: new DesignHook(run, env), calls };
 }
 
 const context = (text: string, event = "PostToolUse"): RunResult => ({
@@ -75,6 +75,95 @@ describe("DesignHook.beforeSettle", () => {
 		const { hook } = fake([context(""), { code: 0, stdout: '{"decision":"block","reason":"fix it"}', stderr: "" }]);
 		await hook.afterEdit({ cwd: "/app", sessionId: "s1", tool: "write", path: "a.html" });
 		expect(await hook.beforeSettle({ cwd: "/app", sessionId: "s1" })).toBe("fix it");
+	});
+});
+
+function withHookConfig(files: Record<string, unknown>): string {
+	const dir = mkdtempSync(join(tmpdir(), "pi-impeccable-cfg-"));
+	mkdirSync(join(dir, ".impeccable"), { recursive: true });
+	for (const [name, value] of Object.entries(files))
+		writeFileSync(join(dir, ".impeccable", name), JSON.stringify(value));
+	return dir;
+}
+
+describe("hookPolicy", () => {
+	it("forces the hook by default", () => {
+		expect(hookPolicy({})).toBe("forced");
+		expect(hookPolicy({ PI_IMPECCABLE_HOOK: "on" })).toBe("forced");
+		expect(hookPolicy({ IMPECCABLE_HOOK_DISABLED: "0" })).toBe("forced");
+	});
+
+	it("only accepts the global kill switches", () => {
+		expect(hookPolicy({ PI_IMPECCABLE_HOOK: "off" })).toBe("off");
+		expect(hookPolicy({ PI_IMPECCABLE_HOOK: "OFF" })).toBe("off");
+		expect(hookPolicy({ PI_IMPECCABLE_HOOK: "0" })).toBe("forced");
+		expect(hookPolicy({ IMPECCABLE_HOOK_DISABLED: "1" })).toBe("off");
+	});
+});
+
+describe("isHookDisabledByConfig", () => {
+	it("is fail-open without config", () => {
+		expect(isHookDisabledByConfig(mkdtempSync(join(tmpdir(), "pi-impeccable-empty-")))).toBe(false);
+	});
+
+	it("sees hook.enabled false and local overrides", () => {
+		expect(isHookDisabledByConfig(withHookConfig({ "config.json": { hook: { enabled: false } } }))).toBe(true);
+		expect(
+			isHookDisabledByConfig(
+				withHookConfig({ "config.json": { hook: { enabled: true } }, "config.local.json": { hook: { enabled: false } } }),
+			),
+		).toBe(true);
+		expect(isHookDisabledByConfig(withHookConfig({ "config.json": { detector: { ignoreFiles: ["legacy/"] } } }))).toBe(false);
+	});
+
+	it("ignores malformed config", () => {
+		const dir = mkdtempSync(join(tmpdir(), "pi-impeccable-bad-"));
+		mkdirSync(join(dir, ".impeccable"), { recursive: true });
+		writeFileSync(join(dir, ".impeccable", "config.json"), "{not json");
+		expect(isHookDisabledByConfig(dir)).toBe(false);
+	});
+});
+
+describe("DesignHook mandatory mode", () => {
+	it("stays silent when the global kill switch is set", async () => {
+		const { hook, calls } = fake([], { PI_IMPECCABLE_HOOK: "off" });
+		expect(await hook.afterEdit({ cwd: "/app", sessionId: "s", tool: "edit", path: "a.tsx" })).toBe("");
+		expect(await hook.beforeSettle({ cwd: "/app", sessionId: "s" })).toBe("");
+		expect(calls).toEqual([]);
+	});
+
+	it("falls back to detect when repo config disables the hook", async () => {
+		const app = withHookConfig({ "config.json": { hook: { enabled: false } } });
+		const { hook, calls } = fake([{ code: 2, stdout: "src/a.tsx: overused-font (bold-header)\n", stderr: "" }]);
+		expect(await hook.afterEdit({ cwd: app, sessionId: "s", tool: "edit", path: "src/a.tsx" })).toContain("overused-font");
+		expect(calls[0].args).toEqual(["detect", join(app, "src/a.tsx")]);
+		expect(calls[0].event).toBeNull();
+	});
+
+	it("runs the mandatory settle pass over the edited files", async () => {
+		const app = withHookConfig({ "config.json": { hook: { enabled: false } } });
+		const { hook, calls } = fake([
+			{ code: 2, stdout: "a\n", stderr: "" },
+			{ code: 2, stdout: "b\n", stderr: "" },
+			{ code: 2, stdout: "deep findings", stderr: "" },
+		]);
+		await hook.afterEdit({ cwd: app, sessionId: "s", tool: "write", path: "a.tsx" });
+		await hook.afterEdit({ cwd: app, sessionId: "s", tool: "write", path: "b.tsx" });
+		expect(await hook.beforeSettle({ cwd: app, sessionId: "s" })).toContain("deep findings");
+		expect(calls[2].args).toEqual(["detect", join(app, "a.tsx"), join(app, "b.tsx")]);
+		expect(await hook.beforeSettle({ cwd: app, sessionId: "s" })).toBe("");
+	});
+	it("caps the mandatory settle pass at 20 files like the engine", async () => {
+		const app = withHookConfig({ "config.json": { hook: { enabled: false } } });
+		const { hook, calls } = fake([
+			...Array.from({ length: 21 }, () => ({ code: 2, stdout: "", stderr: "" }) as RunResult),
+			{ code: 2, stdout: "deep findings", stderr: "" },
+		]);
+		for (let i = 0; i < 21; i++) await hook.afterEdit({ cwd: app, sessionId: "s", tool: "write", path: `f${i}.tsx` });
+		expect(await hook.beforeSettle({ cwd: app, sessionId: "s" })).toContain("deep findings");
+		expect(calls).toHaveLength(22);
+		expect(calls[21].args).toHaveLength(21);
+		expect(calls[21].args).toEqual(["detect", ...Array.from({ length: 20 }, (_, i) => join(app, `f${i}.tsx`))]);
 	});
 });
 

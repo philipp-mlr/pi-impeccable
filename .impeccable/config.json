@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "test/hook.test.ts"
+        ],
+        "createdAt": "2026-11-13T07:31:20.957Z",
+        "reason": "detector fixture: intentionally triggers gradient-text for the engine integration test"
+      }
+    ]
+  }
+}
