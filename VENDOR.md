@@ -5,9 +5,9 @@ pi skill (`.pi/skills/impeccable/` in the upstream repo), vendored so this
 package ships the skill and the extension finds it without a separate install.
 `skills/impeccable/LICENSE` is upstream's Apache-2.0 license.
 
-- Source revision: `c4cd1924c389f68d37c687d9c2bbf13f12547c41` (upstream `main`)
-- Engine version: 0.1.23 (`skills/impeccable/scripts/VERSION`)
-- Vendored: 2026-11-13
+- Source revision: `b49177d32788f2dc585c42831d845dacf1ebed2c` (upstream `main`)
+- Engine version: 0.1.27 (`skills/impeccable/scripts/VERSION`)
+- Vendored: 2026-11-20
 
 The extension is built against the protocol recorded in
 `scripts/baseline.json`. Refresh the copy when upstream changes:
