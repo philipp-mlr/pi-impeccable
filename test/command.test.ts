@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import extension from "../extensions/impeccable.ts";
+import extension, { liveNotConnected } from "../extensions/impeccable.ts";
 
 function load() {
 	const sent: { content: unknown; options: unknown }[] = [];
@@ -21,5 +21,19 @@ describe("/impeccable command", () => {
 		expect(sent).toEqual([
 			{ content: "/skill:impeccable polish header", options: { expandPromptTemplates: true, deliverAs: "steer" } },
 		]);
+	});
+});
+
+describe("liveNotConnected", () => {
+	it("names the missing dev server and where the tag went", () => {
+		const text = liveNotConnected({ devUrl: null, pageFiles: ["internal/web/layout.templ"] });
+		expect(text).toMatch(/no dev server answered/);
+		expect(text).toContain('["internal/web/layout.templ"]');
+	});
+
+	it("points at the dev URL and a rebuild when a server answered", () => {
+		const text = liveNotConnected({ devUrl: "http://localhost:8081", pageFiles: ["index.html"] });
+		expect(text).toContain("http://localhost:8081");
+		expect(text).toMatch(/rebuild or restart/);
 	});
 });

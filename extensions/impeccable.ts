@@ -10,7 +10,7 @@ import { completions, loadCommands, skillPrompt, type CommandInfo } from "./comm
 import { engineRunner, findSkillDir, parseJson } from "./engine.ts";
 import { BLOCK_REASON, HOOK_BLOCK_REASON, isBlockingPoll, isHookDisable, isLiveBoot, isLiveStop } from "./guard.ts";
 import { DesignHook } from "./hook.ts";
-import { LiveSession } from "./live.ts";
+import { LiveSession, waitForBrowser } from "./live.ts";
 
 const LIVE_NOTE =
 	"Impeccable live mode is active. pi-impeccable polls the live server in the background and delivers " +
@@ -22,6 +22,18 @@ const HOOK_NOTE =
 	"appended to edit/write results and a deep pass arrives as an `impeccable-hook` message when you finish. " +
 	"`hook.enabled: false` and `hooks off` do not disable it here — the detector still runs. " +
 	"Treat `MANUAL_DETECTOR_REQUIRED` as already covered.";
+
+// liveNotConnected says why no page has loaded the live script yet, from what
+// the boot reported.
+export function liveNotConnected(boot: Record<string, any>): string {
+	const files = JSON.stringify(boot.pageFiles ?? []);
+	if (!boot.devUrl) {
+		return `impeccable live: no page connected, and no dev server answered. The script tag went into ${files}; ` +
+			"open the page that the running app builds from those files, or start the app from this folder.";
+	}
+	return `impeccable live: no page connected yet. The script tag went into ${files}. ` +
+		`Open ${boot.devUrl}; if the app compiles its templates, rebuild or restart it.`;
+}
 
 export default function (pi: ExtensionAPI) {
 	let session: LiveSession | undefined;
@@ -70,14 +82,19 @@ export default function (pi: ExtensionAPI) {
 			{
 				customType: "impeccable-live",
 				content:
-					"Impeccable live mode started; browser events will arrive as messages. " +
+					"Impeccable live helper is running; live mode works once a page has loaded its script. " +
 					`Open the app URL that serves ${JSON.stringify(boot.pageFiles)} (not the helper port).\n\n` +
 					`\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\``,
 				display: true,
 			},
 			{ deliverAs: "nextTurn" },
 		);
-		ctx.ui.notify("impeccable live started", "info");
+		ctx.ui.notify("impeccable live helper running; waiting for a page to load its script", "info");
+		// Runs in the background, so the command returns at once.
+		void waitForBrowser(engineRunner(dir), ctx.cwd).then((connected) => {
+			if (connected) return ctx.ui.notify("impeccable live: a page is connected", "info");
+			ctx.ui.notify(liveNotConnected(boot), "warning");
+		});
 	}
 
 	async function stop(ctx: ExtensionContext): Promise<void> {

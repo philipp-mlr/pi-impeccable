@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunResult, Runner } from "../extensions/engine.ts";
-import { LiveSession } from "../extensions/live.ts";
+import { LiveSession, waitForBrowser } from "../extensions/live.ts";
 
 function harness(polls: Array<RunResult | Error>) {
 	const calls: string[][] = [];
@@ -82,5 +82,32 @@ describe("LiveSession", () => {
 		await h.finished;
 		expect(h.calls.filter((c) => c[0] === "live-poll")).toHaveLength(1);
 		await h.session.stop();
+	});
+});
+
+describe("waitForBrowser", () => {
+	const status = (clients: number): RunResult => ({
+		code: 0,
+		stdout: JSON.stringify({ liveServer: { status: "ok", port: 8400, connectedClients: clients } }),
+		stderr: "",
+	});
+
+	it("reports true as soon as a page has loaded the live script", async () => {
+		const answers = [status(0), status(0), status(1)];
+		const calls: string[][] = [];
+		const run: Runner = async (args) => (calls.push(args), answers.shift() ?? status(0));
+		await expect(waitForBrowser(run, "/app", { tries: 5, sleep: async () => {} })).resolves.toBe(true);
+		expect(calls).toHaveLength(3);
+		expect(calls[0]).toEqual(["live-status"]);
+	});
+
+	it("reports false when no page connects in time", async () => {
+		const run: Runner = async () => status(0);
+		await expect(waitForBrowser(run, "/app", { tries: 3, sleep: async () => {} })).resolves.toBe(false);
+	});
+
+	it("treats a failing status call as not connected", async () => {
+		const run: Runner = async () => ({ code: 1, stdout: "", stderr: "boom" });
+		await expect(waitForBrowser(run, "/app", { tries: 2, sleep: async () => {} })).resolves.toBe(false);
 	});
 });

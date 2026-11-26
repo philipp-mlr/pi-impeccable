@@ -13,6 +13,24 @@ export interface LiveDeps {
 
 const MAX_FAILURES = 3;
 
+// waitForBrowser asks the helper how many pages have loaded its script. The
+// helper starting proves nothing: the script tag can land in a file the
+// running app never serves (another checkout, a compiled template), and then
+// "started" is a lie. A connected page is the only real proof.
+export async function waitForBrowser(
+	run: Runner,
+	cwd: string,
+	{ tries = 10, sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)) } = {},
+): Promise<boolean> {
+	for (let i = 0; i < tries; i++) {
+		const result = await run(["live-status"], { cwd }).catch(() => undefined);
+		const clients = result?.code === 0 ? parseJson(result.stdout)?.liveServer?.connectedClients : undefined;
+		if (typeof clients === "number" && clients > 0) return true;
+		if (i < tries - 1) await sleep(1000);
+	}
+	return false;
+}
+
 export class LiveSession {
 	private controller?: AbortController;
 	private loop?: Promise<void>;
